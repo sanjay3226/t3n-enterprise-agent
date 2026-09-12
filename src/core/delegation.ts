@@ -1,61 +1,45 @@
-export interface DelegationScope {
-  scopeName: string;
-  allowedFunctions: string[];
-  maxDailyExecutions: number;
-  validUntil: string;
+export interface ScopeRule {
+  name: string;
+  methods: string[];
+  rateLimitDaily: number;
 }
 
-export interface EnterpriseDelegationPolicy {
+export interface DelegationPolicy {
   orgDid: string;
   agentDid: string;
-  scopes: DelegationScope[];
-  status: "granted" | "revoked" | "expired";
+  scopes: ScopeRule[];
+  active: boolean;
 }
 
-// Default standard enterprise scopes for T3N-AuditShield
-export const DEFAULT_ENTERPRISE_SCOPES: DelegationScope[] = [
+export const DEFAULT_SCOPES: ScopeRule[] = [
   {
-    scopeName: "audit:pii_sanitization",
-    allowedFunctions: ["sanitizePii", "verifyZeroKnowledgeProof"],
-    maxDailyExecutions: 5000,
-    validUntil: "2027-12-31T23:59:59Z",
+    name: "audit:pii",
+    methods: ["sanitizeRecord", "evaluateCredit"],
+    rateLimitDaily: 5000,
   },
   {
-    scopeName: "audit:credential_verification",
-    allowedFunctions: ["verifySmartVc", "checkKycStatus"],
-    maxDailyExecutions: 2000,
-    validUntil: "2027-12-31T23:59:59Z",
+    name: "audit:credentials",
+    methods: ["verifyVc", "checkStatus"],
+    rateLimitDaily: 2000,
   },
   {
-    scopeName: "audit:tamper_proof_receipts",
-    allowedFunctions: ["generateAuditReceipt", "logTamperProofHash"],
-    maxDailyExecutions: 10000,
-    validUntil: "2027-12-31T23:59:59Z",
+    name: "audit:receipts",
+    methods: ["createReceipt"],
+    rateLimitDaily: 10000,
   },
 ];
 
-/**
- * Check if the active agent possesses the required delegation scope to execute an action.
- */
-export function assertDelegationScope(
-  policy: EnterpriseDelegationPolicy,
-  requiredScope: string,
-  functionName: string
-): boolean {
-  if (policy.status !== "granted") {
-    throw new Error(`Enterprise delegation policy for agent ${policy.agentDid} is ${policy.status}. Access denied.`);
+export function verifyScope(policy: DelegationPolicy, scopeName: string, method: string): void {
+  if (!policy.active) {
+    throw new Error(`Policy inactive for agent ${policy.agentDid}`);
   }
 
-  const scope = policy.scopes.find((s) => s.scopeName === requiredScope);
+  const scope = policy.scopes.find((s) => s.name === scopeName);
   if (!scope) {
-    throw new Error(`Missing required enterprise scope '${requiredScope}' for agent ${policy.agentDid}.`);
+    throw new Error(`Scope ${scopeName} not granted to ${policy.agentDid}`);
   }
 
-  if (!scope.allowedFunctions.includes(functionName) && !scope.allowedFunctions.includes("*")) {
-    throw new Error(
-      `Function '${functionName}' is not permitted under scope '${requiredScope}'. Permitted: [${scope.allowedFunctions.join(", ")}]`
-    );
+  if (!scope.methods.includes(method) && !scope.methods.includes("*")) {
+    throw new Error(`Method ${method} not permitted under scope ${scopeName}`);
   }
-
-  return true;
 }

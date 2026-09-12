@@ -1,88 +1,51 @@
-# Enterprise Agent Handover & Operations Runbook
+# Operations & Handover Guide
 
-## 1. Hosting Preference Statement
+## Hosting Preference
+We would prefer to continue running and expanding this agent via the Terminal 3 Startup Program and ecosystem listing.
 
-> **Creator Preference:**  
-> We would love to **continue running, expanding, and maintaining T3N-AuditShield through the Terminal 3 Startup Program and ecosystem listing page.**  
-> However, to ensure maximum enterprise reliability and operational redundancy, this document provides the complete, turnkey handover procedure so the **Terminal 3 Network team can immediately take over, self-host, and distribute the agent.**
+For redundancy or direct distribution by the Terminal 3 team, this guide documents the setup, configuration, and monitoring procedures needed to host it independently.
 
----
-
-## 2. Environment Variables Matrix
-
-The agent requires only 3 core environment variables to run in production:
+## Environment Variables
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `T3N_API_KEY` | **Yes** | — | Private hex API key claimed from the T3N portal. |
-| `T3N_TENANT_DID` | **Yes** | — | Canonical tenant DID (`did:t3n:<40-hex>`). |
-| `T3N_ENVIRONMENT` | No | `testnet` | Target enclave cluster (`testnet` or `production`). |
-| `PORT` | No | `3000` | Port for the HTTP `/healthz` and `/metrics` service. |
+| `T3N_API_KEY` | Yes | — | Hex API key from the claim portal |
+| `T3N_TENANT_DID` | Yes | — | Canonical tenant DID (`did:t3n:<40-hex>`) |
+| `T3N_ENVIRONMENT` | No | `testnet` | Target enclave cluster (`testnet` / `production`) |
+| `PORT` | No | `3000` | Port for the HTTP health server |
 
----
+## Running the Service
 
-## 3. 1-Click Handover & Deployment Procedure
-
-### Method A: Docker / Container Deployment (Recommended)
-
+### Docker Compose
 ```bash
-# 1. Clone the repository
-git clone https://github.com/<your-username>/t3n-enterprise-agent.git
+git clone https://github.com/<username>/t3n-enterprise-agent.git
 cd t3n-enterprise-agent
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with production T3N credentials
-
-# 3. Build and launch container
+cp .env.example .env # populate with API key and DID
 docker compose up -d
-
-# 4. Verify health
-curl -f http://localhost:3000/healthz
+curl http://localhost:3000/healthz
 ```
 
-### Method B: Bare-Metal Node.js Deployment
-
+### Node.js Direct
 ```bash
-# 1. Prerequisites: Node.js >= 18.0.0
-node -v
-
-# 2. Install dependencies
 npm ci
-
-# 3. Run enterprise audit agent
 npm start
-
-# 4. Run background telemetry daemon
-npm run health
 ```
 
----
+## Monitoring & Health Probes
 
-## 4. Monitoring & Telemetry Probes
+- **Liveness Probe**: `GET /healthz`  
+  Returns JSON status (`status: "UP"`, `tenantDid`, `environment`, `uptimeSec`). Returns HTTP 503 if the session fails.
+- **Metrics Probe**: `GET /metrics`  
+  Returns memory usage (`heapUsedMb`, `rssMb`) and process PID.
 
-The agent exposes two dedicated HTTP endpoints for infrastructure monitoring:
-
-* **Liveness & Readiness Probe:** `GET /healthz`  
-  Returns HTTP 200 with JSON payload containing `status: "UP"`, active `tenantDid`, `environment`, and uptime. Used for Kubernetes pod health and load balancer routing.
-* **Operational Telemetry:** `GET /metrics`  
-  Returns memory consumption (`heapUsedMb`, `rssMb`), process ID, and runtime diagnostics.
-
----
-
-## 5. Maintenance & Upgrades
-
-### Updating the T3N SDK
-When Terminal 3 releases new versions of `@terminal3/t3n-sdk`:
+## Updating Dependencies
+To update the T3N SDK when newer versions are released:
 ```bash
 npm install @terminal3/t3n-sdk@latest
 npm test
 ```
-The architecture abstracts all SDK imports into `src/config/t3n.ts`, meaning breaking changes or manifest upgrades only need to be adjusted in one single file.
+All SDK instantiation logic is isolated in `src/config/t3n.ts`.
 
----
-
-## 6. Escalation & Contact
-* **Developer Contact:** Discipline Guy & Team
-* **DID:** `did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384`
-* **Telegram:** Quote Superteam in community chat (`@wardumb`)
+## Contact & DID
+- DID: `did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384`
+- Support: Telegram community chat (`@wardumb`)

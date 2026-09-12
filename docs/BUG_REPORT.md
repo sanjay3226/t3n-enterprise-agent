@@ -1,69 +1,35 @@
-# T3N Refreshed Docs: Bug & Developer Friction Report
+# Developer Feedback & Bug Report: Refreshed T3N Docs
 
-> **Prepared for:** Terminal 3 Network Developer Core Team  
-> **Testing Environment:** Windows 11 x64, Node.js v24.19.0 (LTS), `@terminal3/t3n-sdk@5.2.0`  
-> **Tester DID:** `did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384`
-
----
-
-## 1. Bug: Subshell Execution & npm Install Friction on Windows
-
-### Description:
-During initialization (`npm install @terminal3/t3n-sdk@5.2.0 tsx`), child processes spawned by npm on Windows can fail with:
-```
-npm error code 1
-npm error path F:\t3n-enterprise-agent\node_modules\esbuild
-npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node install.js
-npm error 'node' is not recognized as an internal or external command
-```
-This occurs when the executing subshell has not re-sourced the updated system PATH or when PATH contains unquoted directory segments with spaces (e.g. `C:\Program Files\nodejs`).
-
-### Suggested Docs Improvement:
-Add a dedicated note in the **Prerequisites** or **Set Up Dev Env** section:
-> *"On Windows systems, ensure `C:\Program Files\nodejs` is added to both System and User PATH variables and run terminal sessions with administrative rights, or use `npx --yes` to avoid esbuild subshell path lookup issues."*
+- **Environment**: Windows 11 x64, Node.js v24.19.0 (LTS), `@terminal3/t3n-sdk@5.2.0`
+- **Tester DID**: `did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384`
 
 ---
 
-## 2. Friction Point: API Key Claim UX & One-Time Display Risk
-
-### Description:
-On the claim page (`https://go.terminal3.io/adk-community`), the API Key is presented once in a modal. If a developer accidentally clicks away, closes the tab, or has a browser popup blocker, the key is permanently lost, requiring them to reach out via Telegram (`@wardumb`) to re-issue credits.
-
-### Suggested Product Improvement:
-1. Include an explicit **"Confirm you have copied the API key"** checkbox before allowing the user to dismiss the modal.
-2. Provide a temporary 10-minute download of a `.env.local` file containing both `T3N_API_KEY` and `T3N_TENANT_DID`.
-
----
-
-## 3. Performance & DX: TrustAnchor Manifest Caching Recommendation
-
-### Description:
-In the Quickstart walkthrough:
-```typescript
-const t3n = new T3nClient({
-  trustAnchor: await fetchTrustedManifest("testnet"),
-  ...
-});
-```
-`fetchTrustedManifest("testnet")` makes a remote network call to fetch the TDX attestation bundle manifest every time a client instance is instantiated. In serverless or multi-invocation enterprise environments, this introduces unnecessary network latency (~400ms–800ms) on each cold start.
-
-### Suggested Docs Improvement:
-Add an optimization callout in the **Tips** section:
-> *"In production enterprise applications, cache the result of `fetchTrustedManifest(env)` in memory with a sensible TTL (e.g., 1 hour) across client initializations rather than fetching on every request."*
+### 1. Windows Subshell PATH Issue during `npm install`
+- **Issue**: Running `npm install @terminal3/t3n-sdk@5.2.0 tsx` on Windows failed during the `esbuild` postinstall step:
+  ```
+  npm error code 1
+  npm error path ...\node_modules\esbuild
+  npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node install.js
+  npm error 'node' is not recognized as an internal or external command
+  ```
+  This happens when npm spawns a secondary `cmd.exe` shell that has not inherited newly set PATH variables or when unquoted semicolons exist in the user's PATH string.
+- **Suggestion**: Add a note in the Prerequisites section reminding Windows developers to verify that the Node.js installation directory is present in both User and System PATH before running the quickstart commands.
 
 ---
 
-## 4. Documentation Clarity: DID vs. Address Distinction
+### 2. Single-Display API Key Modal on Claim Page
+- **Issue**: On `go.terminal3.io/adk-community`, the generated API key is shown in a modal that cannot be retrieved again once closed. If a developer accidentally clicks away or closes the tab, the key is lost, requiring manual intervention via Telegram.
+- **Suggestion**: Add an explicit copy-confirmation step (e.g. "I have saved this key" checkbox) or provide a one-time `.env` download button.
 
-### Description:
-The quickstart demonstrates:
-```typescript
-const address = eth_get_address(T3N_API_KEY);
-const did = await t3n.authenticate(createEthAuthInput(address));
-const tenantDid = did.value;
-```
-For developers new to decentralized identity, seeing an Ethereum address derived from the API key alongside a `did:t3n:...` identifier can cause confusion over which value to use for delegation, access control, and smart contracts.
+---
 
-### Suggested Docs Improvement:
-Include a 1-sentence tip:
-> *"The derived Ethereum address is the cryptographic signing keypair used for the handshake, while `tenantDid` is your permanent canonical on-chain identity across all T3N contracts and permissions."*
+### 3. Trust Anchor Manifest Caching in Quickstart
+- **Issue**: The quickstart sample calls `await fetchTrustedManifest("testnet")` inline during client construction. For agents running in serverless or multi-invocation environments, this adds an unnecessary remote HTTP call (~400-800ms) on each cold start.
+- **Suggestion**: Add a note in the documentation showing how to cache the manifest object with an in-memory TTL across client initializations.
+
+---
+
+### 4. Clarification on DID vs. Address
+- **Issue**: Developers migrating from standard Web3 tooling might be confused by having both a derived Ethereum address and a `did:t3n:...` identifier in the quickstart.
+- **Suggestion**: Include a brief callout clarifying that the derived address is used strictly for cryptographic handshake signing, while the `tenantDid` is the canonical identifier for permissions and contracts.

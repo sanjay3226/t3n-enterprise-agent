@@ -18,33 +18,25 @@ export interface T3nSession {
   environment: "testnet" | "production";
 }
 
-let cachedSession: T3nSession | null = null;
+let sessionInstance: T3nSession | null = null;
 
-/**
- * Initialize and authenticate an enterprise T3N client session.
- * Connects directly to the TEE confidential computing enclave.
- */
-export async function getT3nSession(forceRefresh = false): Promise<T3nSession> {
-  if (cachedSession && !forceRefresh) {
-    return cachedSession;
+export async function getT3nSession(refresh = false): Promise<T3nSession> {
+  if (sessionInstance && !refresh) {
+    return sessionInstance;
   }
 
   const apiKey = process.env.T3N_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing T3N_API_KEY in environment variables. Please check your .env file.");
+    throw new Error("T3N_API_KEY environment variable is required.");
   }
 
   const env = (process.env.T3N_ENVIRONMENT || "testnet") as "testnet" | "production";
   setEnvironment(env);
 
-  // 1. Load cryptographic WASM component
   const wasmComponent = await loadWasmComponent();
   const ethAddress = eth_get_address(apiKey);
-
-  // 2. Fetch trust anchor manifest to verify TDX attestation
   const trustAnchor = await fetchTrustedManifest(env);
 
-  // 3. Initialize T3nClient with enclave attestation verification
   const client = new T3nClient({
     trustAnchor,
     wasmComponent,
@@ -53,19 +45,15 @@ export async function getT3nSession(forceRefresh = false): Promise<T3nSession> {
     },
   });
 
-  // 4. Perform secure session handshake with the enclave
   await client.handshake();
+  const did = await client.authenticate(createEthAuthInput(ethAddress));
 
-  // 5. Authenticate and resolve Tenant DID
-  const didResult = await client.authenticate(createEthAuthInput(ethAddress));
-  const tenantDid = didResult.value;
-
-  cachedSession = {
+  sessionInstance = {
     client,
-    tenantDid,
+    tenantDid: did.value,
     ethAddress,
     environment: env,
   };
 
-  return cachedSession;
+  return sessionInstance;
 }

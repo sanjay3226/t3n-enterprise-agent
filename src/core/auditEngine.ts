@@ -1,150 +1,105 @@
 import crypto from "node:crypto";
 import { T3nSession } from "../config/t3n.js";
-import { assertDelegationScope, EnterpriseDelegationPolicy } from "./delegation.js";
+import { verifyScope, DelegationPolicy } from "./delegation.js";
 
-export interface SensitiveCustomerRecord {
-  recordId: string;
-  fullName: string;
+export interface CustomerRecord {
+  id: string;
+  name: string;
   email: string;
-  taxIdOrSsn: string;
+  ssn: string;
   creditScore: number;
-  annualIncomeUsd: number;
-  jurisdiction: string;
+  income: number;
+  region: string;
 }
 
-export interface SanitizedAuditOutput {
+export interface SanitizedAuditResult {
   recordId: string;
   pseudonymDid: string;
-  isEligibleForCredit: boolean;
-  complianceRating: "PASSED" | "FLAGGED" | "REJECTED";
-  sanitizedSummary: string;
+  eligible: boolean;
+  status: "PASSED" | "FLAGGED" | "REJECTED";
   auditHash: string;
-  executionTimestamp: string;
-  teeAttestationVerified: boolean;
+  timestamp: string;
 }
 
-export interface SmartVcVerificationResult {
+export interface VcVerificationResult {
   holderDid: string;
   credentialType: string;
-  issuerDid: string;
-  isValid: boolean;
-  issuedAt: string;
-  expiresAt: string;
-  verifiedAttributes: Record<string, boolean | string>;
-  proofSignature: string;
+  valid: boolean;
+  kycLevel: string;
+  signature: string;
 }
 
-/**
- * Confidential Enterprise Audit Engine running inside T3N Confidential Compute (TEE).
- */
 export class AuditEngine {
-  private session: T3nSession;
-  private policy: EnterpriseDelegationPolicy;
+  constructor(
+    private session: T3nSession,
+    private policy: DelegationPolicy
+  ) {}
 
-  constructor(session: T3nSession, policy: EnterpriseDelegationPolicy) {
-    this.session = session;
-    this.policy = policy;
-  }
+  public async processCustomerRecord(record: CustomerRecord): Promise<SanitizedAuditResult> {
+    verifyScope(this.policy, "audit:pii", "sanitizeRecord");
 
-  /**
-   * Scenario 1: Zero-Knowledge Customer PII Sanitization & Audit
-   * Sanitizes private customer records inside the confidential enclave.
-   * Raw PII is never exposed to third-party LLMs or external loggers.
-   */
-  public async auditCustomerRecord(record: SensitiveCustomerRecord): Promise<SanitizedAuditOutput> {
-    assertDelegationScope(this.policy, "audit:pii_sanitization", "sanitizePii");
-
-    // 1. Derive deterministic privacy pseudonym
-    const pseudonymHash = crypto
+    // Enclave pseudonym generation (deterministic, zero PII leakage)
+    const pseudonym = crypto
       .createHmac("sha256", this.session.tenantDid)
-      .update(record.taxIdOrSsn)
-      .digest("hex");
-    const pseudonymDid = `did:t3n:anon:${pseudonymHash.slice(0, 32)}`;
+      .update(record.ssn)
+      .digest("hex")
+      .slice(0, 32);
 
-    // 2. Perform zero-knowledge compliance computation inside TEE
-    const isIncomeCompliant = record.annualIncomeUsd >= 50000;
-    const isCreditCompliant = record.creditScore >= 680;
-    const isEligible = isIncomeCompliant && isCreditCompliant;
-
-    let rating: "PASSED" | "FLAGGED" | "REJECTED" = "PASSED";
-    if (!isEligible) {
-      rating = record.creditScore >= 600 ? "FLAGGED" : "REJECTED";
+    const eligible = record.income >= 50000 && record.creditScore >= 680;
+    let status: "PASSED" | "FLAGGED" | "REJECTED" = "PASSED";
+    if (!eligible) {
+      status = record.creditScore >= 600 ? "FLAGGED" : "REJECTED";
     }
 
     const timestamp = new Date().toISOString();
-
-    // 3. Generate cryptographic tamper-evident receipt hash
-    const receiptData = `${record.recordId}|${pseudonymDid}|${rating}|${timestamp}|${this.session.tenantDid}`;
-    const auditHash = crypto.createHash("sha256").update(receiptData).digest("hex");
+    const digest = crypto
+      .createHash("sha256")
+      .update(`${record.id}:${pseudonym}:${status}:${timestamp}`)
+      .digest("hex");
 
     return {
-      recordId: record.recordId,
-      pseudonymDid,
-      isEligibleForCredit: isEligible,
-      complianceRating: rating,
-      sanitizedSummary: `Customer record processed in T3N TEE. Income and Credit thresholds verified. Raw PII redacted.`,
-      auditHash: `0x${auditHash}`,
-      executionTimestamp: timestamp,
-      teeAttestationVerified: true,
+      recordId: record.id,
+      pseudonymDid: `did:t3n:anon:${pseudonym}`,
+      eligible,
+      status,
+      auditHash: `0x${digest}`,
+      timestamp,
     };
   }
 
-  /**
-   * Scenario 2: Smart Verifiable Credential (VC) Verification
-   * Validates cryptographic enterprise credentials against T3N decentralized identity.
-   */
-  public async verifyEnterpriseCredential(
-    holderDid: string,
-    credentialType: string
-  ): Promise<SmartVcVerificationResult> {
-    assertDelegationScope(this.policy, "audit:credential_verification", "verifySmartVc");
+  public async verifyCredential(holderDid: string, credentialType: string): Promise<VcVerificationResult> {
+    verifyScope(this.policy, "audit:credentials", "verifyVc");
 
-    // Generate cryptographic verification proof
-    const proofPayload = `${holderDid}:${credentialType}:${this.session.tenantDid}:${Date.now()}`;
-    const proofSignature = crypto
+    const payload = `${holderDid}:${credentialType}:${this.session.tenantDid}`;
+    const sig = crypto
       .createHmac("sha256", this.session.ethAddress)
-      .update(proofPayload)
+      .update(payload)
       .digest("hex");
 
     return {
       holderDid,
       credentialType,
-      issuerDid: this.session.tenantDid,
-      isValid: true,
-      issuedAt: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
-      expiresAt: new Date(Date.now() + 335 * 24 * 3600 * 1000).toISOString(),
-      verifiedAttributes: {
-        kycLevel: "Level_2_Verified",
-        jurisdictionWhitelisted: true,
-        antiMoneyLaunderingCheck: "Passed",
-        accreditedInvestor: true,
-      },
-      proofSignature: `0x${proofSignature}`,
+      valid: true,
+      kycLevel: "Level_2_Verified",
+      signature: `0x${sig}`,
     };
   }
 
-  /**
-   * Scenario 3: Generate Tamper-Proof Audit Receipt
-   */
-  public generateAuditReceipt(action: string, metadata: Record<string, unknown>): {
-    receiptId: string;
-    action: string;
-    agentDid: string;
-    tamperProofHash: string;
-    timestamp: string;
-  } {
-    assertDelegationScope(this.policy, "audit:tamper_proof_receipts", "generateAuditReceipt");
+  public createReceipt(action: string, meta: Record<string, unknown>) {
+    verifyScope(this.policy, "audit:receipts", "createReceipt");
 
-    const receiptId = `rcpt_${crypto.randomBytes(8).toString("hex")}`;
+    const receiptId = `rcpt_${crypto.randomBytes(6).toString("hex")}`;
     const timestamp = new Date().toISOString();
-    const payload = JSON.stringify({ receiptId, action, agentDid: this.session.tenantDid, metadata, timestamp });
-    const tamperProofHash = `0x${crypto.createHash("sha256").update(payload).digest("hex")}`;
+    const hash = crypto
+      .createHash("sha256")
+      .update(JSON.stringify({ receiptId, action, meta, timestamp }))
+      .digest("hex");
 
     return {
       receiptId,
       action,
       agentDid: this.session.tenantDid,
-      tamperProofHash,
+      hash: `0x${hash}`,
       timestamp,
     };
   }

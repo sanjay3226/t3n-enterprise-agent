@@ -1,90 +1,65 @@
 import { getT3nSession } from "./config/t3n.js";
-import { verifyAgentIdentity } from "./core/auth.js";
-import { DEFAULT_ENTERPRISE_SCOPES, EnterpriseDelegationPolicy } from "./core/delegation.js";
-import { AuditEngine, SensitiveCustomerRecord } from "./core/auditEngine.js";
+import { resolveIdentity } from "./core/auth.js";
+import { DEFAULT_SCOPES, DelegationPolicy } from "./core/delegation.js";
+import { AuditEngine, CustomerRecord } from "./core/auditEngine.js";
 
-async function runEnterpriseAgent() {
-  console.log("===============================================================");
-  console.log(" 🛡️  T3N-AuditShield: Enterprise Compliance & Privacy Guardian ");
-  console.log("    Powered by Terminal 3 Network (T3N) Confidential Enclaves  ");
-  console.log("===============================================================\n");
-
-  console.log("[1/5] Initializing connection to T3N confidential enclave...");
-  const startTime = Date.now();
+async function main() {
+  console.log("[t3n-agent] Initializing session on testnet...");
+  const t0 = Date.now();
   const session = await getT3nSession();
-  const elapsed = Date.now() - startTime;
+  console.log(`[t3n-agent] Authenticated in ${Date.now() - t0}ms`);
+  console.log(`[t3n-agent] Tenant DID: ${session.tenantDid}`);
+  console.log(`[t3n-agent] Eth Address: ${session.ethAddress}`);
 
-  console.log(`[✓] Connected in ${elapsed}ms!`);
-  console.log(`    • Environment:       ${session.environment}`);
-  console.log(`    • Tenant DID:        ${session.tenantDid}`);
-  console.log(`    • Derived Address:   ${session.ethAddress}`);
+  const identity = resolveIdentity(session);
+  console.log(`[t3n-agent] Identity verified: ${identity.name} (${identity.role})`);
 
-  console.log("\n[2/5] Verifying Agent Identity & Cryptographic Roots...");
-  const identity = verifyAgentIdentity(session);
-  console.log(`[✓] Agent Identity Verified: ${identity.name}`);
-  console.log(`    • Role:              ${identity.role}`);
-  console.log(`    • Status:            ${identity.status}`);
-
-  console.log("\n[3/5] Setting up Enterprise Member Delegation Policy...");
-  const policy: EnterpriseDelegationPolicy = {
+  const policy: DelegationPolicy = {
     orgDid: session.tenantDid,
     agentDid: session.tenantDid,
-    scopes: DEFAULT_ENTERPRISE_SCOPES,
-    status: "granted",
+    scopes: DEFAULT_SCOPES,
+    active: true,
   };
-  console.log(`[✓] Scopes Granted:`);
-  for (const scope of policy.scopes) {
-    console.log(`    • ${scope.scopeName.padEnd(30)} (Max daily: ${scope.maxDailyExecutions})`);
-  }
 
   const engine = new AuditEngine(session, policy);
 
-  console.log("\n[4/5] Executing Scenario 1: Zero-Knowledge Customer PII Sanitization");
-  const sampleCustomerRecord: SensitiveCustomerRecord = {
-    recordId: "REC-CORP-98421",
-    fullName: "Johnathan Doe-Smith",
-    email: "j.doe.smith@confidential-corp.example.com",
-    taxIdOrSsn: "987-65-4321",
+  // 1. Process customer record (sanitizing PII inside TEE)
+  console.log("\n[task 1/3] Processing customer record with PII sanitization...");
+  const customer: CustomerRecord = {
+    id: "REC-CORP-98421",
+    name: "Johnathan Doe",
+    email: "j.doe@example.com",
+    ssn: "987-65-4321",
     creditScore: 745,
-    annualIncomeUsd: 125000,
-    jurisdiction: "US-CA",
+    income: 125000,
+    region: "US-CA",
   };
 
-  console.log("    • Ingesting sensitive customer record (Raw SSN / PII)...");
-  const auditResult = await engine.auditCustomerRecord(sampleCustomerRecord);
-  console.log("    • Sanitization & Confidential Evaluation Complete:");
-  console.log(`      - Record ID:             ${auditResult.recordId}`);
-  console.log(`      - Derived Pseudonym DID: ${auditResult.pseudonymDid}`);
-  console.log(`      - Compliance Verdict:    ${auditResult.complianceRating} (Eligible: ${auditResult.isEligibleForCredit})`);
-  console.log(`      - Cryptographic Hash:    ${auditResult.auditHash}`);
-  console.log(`      - Enclave Attestation:   ${auditResult.teeAttestationVerified ? "VERIFIED (Intel TDX)" : "FAILED"}`);
+  const audit = await engine.processCustomerRecord(customer);
+  console.log(`[task 1/3] Result: ${audit.status} | Eligible: ${audit.eligible}`);
+  console.log(`[task 1/3] Pseudonym DID: ${audit.pseudonymDid}`);
+  console.log(`[task 1/3] Audit Hash: ${audit.auditHash}`);
 
-  console.log("\n[5/5] Executing Scenario 2: Smart Verifiable Credential (VC) Verification");
-  const holderTargetDid = "did:t3n:7821bc34ef918234ab871234cd982341fe654321";
-  const vcResult = await engine.verifyEnterpriseCredential(holderTargetDid, "EnterpriseComplianceCertificate_v2");
-  console.log(`    • Target Holder DID:       ${vcResult.holderDid}`);
-  console.log(`    • Credential Type:         ${vcResult.credentialType}`);
-  console.log(`    • Verification Status:     ${vcResult.isValid ? "VALID & ACTIVE" : "INVALID"}`);
-  console.log(`    • KYC Verification Level:  ${vcResult.verifiedAttributes.kycLevel}`);
-  console.log(`    • Proof Signature:         ${vcResult.proofSignature.slice(0, 32)}...`);
+  // 2. Verify Smart VC
+  console.log("\n[task 2/3] Verifying Smart Verifiable Credential...");
+  const targetDid = "did:t3n:7821bc34ef918234ab871234cd982341fe654321";
+  const vc = await engine.verifyCredential(targetDid, "EnterpriseComplianceCertificate_v2");
+  console.log(`[task 2/3] Credential: ${vc.credentialType} | Valid: ${vc.valid}`);
+  console.log(`[task 2/3] KYC: ${vc.kycLevel} | Sig: ${vc.signature.slice(0, 24)}...`);
 
-  console.log("\n[BONUS] Generating Tamper-Proof Audit Receipt for Ledger Storage...");
-  const receipt = engine.generateAuditReceipt("CORP_CREDENTIAL_AUDIT_BATCH_01", {
+  // 3. Issue audit receipt
+  console.log("\n[task 3/3] Generating tamper-evident audit receipt...");
+  const receipt = engine.createReceipt("CORP_CREDENTIAL_AUDIT_BATCH_01", {
     recordsProcessed: 1,
-    durationMs: elapsed,
-    enclaveCluster: "testnet-us-east",
+    environment: session.environment,
   });
-  console.log(`[✓] Audit Receipt Generated:`);
-  console.log(`    • Receipt ID:        ${receipt.receiptId}`);
-  console.log(`    • Receipt Hash:      ${receipt.tamperProofHash}`);
-  console.log(`    • Timestamp:         ${receipt.timestamp}`);
+  console.log(`[task 3/3] Receipt ID: ${receipt.receiptId}`);
+  console.log(`[task 3/3] Digest: ${receipt.hash}`);
 
-  console.log("\n===============================================================");
-  console.log(" 🚀 T3N-AuditShield Execution Finished Successfully with 0 Errors ");
-  console.log("===============================================================\n");
+  console.log("\n[t3n-agent] All agent tasks completed successfully.");
 }
 
-runEnterpriseAgent().catch((err) => {
-  console.error("\n❌ Fatal error in T3N Enterprise Agent:", err);
+main().catch((err) => {
+  console.error("[t3n-agent] Error:", err.message);
   process.exit(1);
 });
