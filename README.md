@@ -23,7 +23,7 @@ The agent audits sensitive customer records, sanitizes PII, and verifies Smart V
 
 1. Clone and install dependencies:
    ```bash
-   git clone https://github.com/<username>/t3n-enterprise-agent.git
+   git clone https://github.com/sanjay3226/t3n-enterprise-agent.git
    cd t3n-enterprise-agent
    npm install
    ```

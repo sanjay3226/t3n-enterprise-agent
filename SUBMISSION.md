@@ -3,7 +3,7 @@
 - **Challenge:** Try out new docs to build a trusted agent with T3N that we can distribute / host
 - **Sponsor:** Terminal 3 Network (T3N)
 - **Participant DID:** `did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384`
-- **GitHub Repository:** `https://github.com/<username>/t3n-enterprise-agent`
+- **GitHub Repository:** `https://github.com/sanjay3226/t3n-enterprise-agent`
 
 ---
 
@@ -37,7 +37,7 @@ For direct hosting by the Terminal 3 team, the repository includes:
 
 Quick deployment command:
 ```bash
-git clone https://github.com/<username>/t3n-enterprise-agent.git
+git clone https://github.com/sanjay3226/t3n-enterprise-agent.git
 cd t3n-enterprise-agent
 docker compose up -d
 curl http://localhost:3000/healthz

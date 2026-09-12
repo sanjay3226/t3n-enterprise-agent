@@ -4,4 +4,4 @@ An autonomous enterprise compliance agent that sanitizes customer PII, validates
 
 Tested on live T3N testnet: did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384
 
-Repo + docs: https://github.com/<username>/t3n-enterprise-agent
+Repo + docs: https://github.com/sanjay3226/t3n-enterprise-agent
