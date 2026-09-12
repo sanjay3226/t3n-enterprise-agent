@@ -32,7 +32,7 @@ For direct hosting by the Terminal 3 team, the repository includes:
 - A production `Dockerfile` and `docker-compose.yml` for 1-command startup.
 - A built-in HTTP health and telemetry service (`/healthz` and `/metrics` on port 3000) for Kubernetes or Docker monitoring.
 - An automated GitHub Actions CI workflow (`.github/workflows/ci.yml`) testing against Node 18, 20, and 22.
-- A complete unit test suite (`npm test`) with 100% pass rate.
+- A complete unit test suite (`npm test`) with 100% pass rate across 8 test suites.
 - An operational runbook in `docs/HANDOVER.md`.
 
 Quick deployment command:
@@ -82,15 +82,16 @@ curl http://localhost:3000/healthz
 > t3n-enterprise-agent@1.0.0 test
 > tsx --test test/agent.test.ts
 
-✔ DID syntax verification (1.16ms)
-✔ Identity resolution (0.22ms)
-✔ Delegation scope enforcement (0.76ms)
-✔ Confidential PII sanitization and credit evaluation (1.76ms)
-✔ Underwriting rejection logic (0.25ms)
-✔ Smart VC verification proof (0.24ms)
-✔ Tamper-evident audit receipt minting (0.47ms)
-ℹ tests 7
-ℹ pass 7
+✔ DID syntax verification (0.99ms)
+✔ Identity resolution (0.14ms)
+✔ Delegation scope enforcement (0.53ms)
+✔ Confidential PII sanitization and credit evaluation (1.59ms)
+✔ Underwriting rejection logic (0.19ms)
+✔ Smart VC verification proof (0.18ms)
+✔ Tamper-evident audit receipt minting (0.35ms)
+✔ Health server liveness and metrics probes (1194ms)
+ℹ tests 8
+ℹ pass 8
 ℹ fail 0
 ```
 

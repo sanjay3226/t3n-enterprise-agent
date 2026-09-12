@@ -1,11 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import http from "node:http";
 import { isCanonicalDid, resolveIdentity } from "../src/core/auth.js";
 import { verifyScope, DelegationPolicy, DEFAULT_SCOPES } from "../src/core/delegation.js";
 import { AuditEngine, CustomerRecord } from "../src/core/auditEngine.js";
 import { T3nSession } from "../src/config/t3n.js";
+import { startHealthServer } from "../src/health.js";
 
-// Mock T3N session for deterministic offline unit testing
 const mockSession: T3nSession = {
   client: {} as any,
   tenantDid: "did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384",
@@ -40,22 +41,18 @@ test("Identity resolution", () => {
 });
 
 test("Delegation scope enforcement", () => {
-  // Permitted method
   assert.doesNotThrow(() => {
     verifyScope(mockPolicy, "audit:pii", "sanitizeRecord");
   });
 
-  // Disallowed method under scope
   assert.throws(() => {
     verifyScope(mockPolicy, "audit:pii", "deleteDatabase");
   }, /not permitted/);
 
-  // Missing scope
   assert.throws(() => {
     verifyScope(mockPolicy, "unauthorized:scope", "anyMethod");
   }, /not granted/);
 
-  // Inactive policy
   const inactivePolicy: DelegationPolicy = { ...mockPolicy, active: false };
   assert.throws(() => {
     verifyScope(inactivePolicy, "audit:pii", "sanitizeRecord");
@@ -83,11 +80,9 @@ test("Confidential PII sanitization and credit evaluation", async () => {
   assert.ok(result.pseudonymDid.startsWith("did:t3n:anon:"));
   assert.ok(result.auditHash.startsWith("0x"));
 
-  // Determinism test: Same SSN must produce the identical pseudonym DID
   const repeatResult = await engine.processCustomerRecord(eligibleCustomer);
   assert.equal(result.pseudonymDid, repeatResult.pseudonymDid);
 
-  // Difference test: Different SSN must produce a different pseudonym DID
   const differentCustomer: CustomerRecord = { ...eligibleCustomer, ssn: "999-88-7777" };
   const differentResult = await engine.processCustomerRecord(differentCustomer);
   assert.notEqual(result.pseudonymDid, differentResult.pseudonymDid);
@@ -129,5 +124,37 @@ test("Tamper-evident audit receipt minting", () => {
   assert.equal(receipt.action, "TEST_ACTION");
   assert.equal(receipt.agentDid, mockSession.tenantDid);
   assert.ok(receipt.hash.startsWith("0x"));
-  assert.equal(receipt.hash.length, 66); // 0x + 64 hex chars
+  assert.equal(receipt.hash.length, 66);
+});
+
+test("Health server liveness and metrics probes", async () => {
+  const server = await startHealthServer();
+
+  const fetchEndpoint = (path: string): Promise<{ status: number; body: any }> => {
+    return new Promise((resolve, reject) => {
+      http
+        .get(`http://localhost:3000${path}`, (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => {
+            resolve({ status: res.statusCode || 0, body: JSON.parse(data) });
+          });
+        })
+        .on("error", reject);
+    });
+  };
+
+  try {
+    const health = await fetchEndpoint("/healthz");
+    assert.equal(health.status, 200);
+    assert.equal(health.body.status, "UP");
+    assert.equal(health.body.environment, "testnet");
+
+    const metrics = await fetchEndpoint("/metrics");
+    assert.equal(metrics.status, 200);
+    assert.ok(typeof metrics.body.heapUsedMb === "number");
+    assert.ok(typeof metrics.body.pid === "number");
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
