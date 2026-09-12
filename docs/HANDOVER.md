@@ -18,7 +18,7 @@ For redundancy or direct distribution by the Terminal 3 team, this guide documen
 
 ### Docker Compose
 ```bash
-git clone https://github.com/<username>/t3n-enterprise-agent.git
+git clone https://github.com/sanjay3226/t3n-enterprise-agent.git
 cd t3n-enterprise-agent
 cp .env.example .env # populate with API key and DID
 docker compose up -d
