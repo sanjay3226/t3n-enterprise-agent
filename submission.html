@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>T3N Enterprise Agent Submission</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      background: #ffffff;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    h1 { font-size: 24px; border-bottom: 2px solid #eaeaea; padding-bottom: 8px; color: #0f172a; }
+    h2 { font-size: 18px; margin-top: 24px; color: #1e293b; border-bottom: 1px solid #f1f5f9; padding-bottom: 4px; }
+    h3 { font-size: 15px; color: #334155; }
+    p, li { font-size: 14px; color: #334155; }
+    ul, ol { padding-left: 20px; }
+    pre {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      overflow-x: auto;
+      font-family: Consolas, monospace;
+      color: #0f172a;
+    }
+    code {
+      background: #f1f5f9;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: Consolas, monospace;
+    }
+    .meta-box {
+      background: #f8fafc;
+      border-left: 4px solid #0284c7;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>T3N-AuditShield: Enterprise Compliance Agent Submission</h1>
+
+  <div class="meta-box">
+    <p><strong>Challenge:</strong> Try out new docs to build a trusted agent with T3N that we can distribute / host</p>
+    <p><strong>Sponsor:</strong> Terminal 3 Network (T3N)</p>
+    <p><strong>Participant DID:</strong> <code>did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384</code></p>
+    <p><strong>GitHub Repository:</strong> <a href="https://github.com/sanjay3226/t3n-enterprise-agent">https://github.com/sanjay3226/t3n-enterprise-agent</a></p>
+  </div>
+
+  <h2>1. Overview & Enterprise Use Case</h2>
+  <p><strong>T3N-AuditShield</strong> is an autonomous compliance and data privacy agent designed for enterprises that need to process sensitive customer data without exposing raw Personally Identifiable Information (PII) to LLMs, external APIs, or cloud loggers.</p>
+
+  <h3>The Problem</h3>
+  <p>Enterprises managing personal customer records (SSNs, Tax IDs, financial balances) face strict regulatory requirements (GDPR, CCPA). Sending raw records directly to third-party AI models or agents creates compliance and data leakage risks.</p>
+
+  <h3>The Solution with T3N</h3>
+  <p>Using Terminal 3 Network's confidential computing enclaves (Intel TDX) and decentralized identity (DID):</p>
+  <ul>
+    <li><strong>In-Enclave PII Sanitization:</strong> Raw records are ingested and evaluated inside the hardware enclave. Only a deterministic pseudonym DID (<code>did:t3n:anon:&lt;hash&gt;</code>) and a boolean compliance verdict are emitted.</li>
+    <li><strong>Smart Verifiable Credential (VC) Checks:</strong> Validates caller DIDs and credentials against on-chain registries.</li>
+    <li><strong>Tamper-Evident Receipts:</strong> Generates deterministic SHA-256 digests for corporate compliance logs.</li>
+  </ul>
+
+  <h2>2. Maintenance & Handover Process</h2>
+  <h3>Program Preference</h3>
+  <p>We would like to continue running and maintaining this agent through the <strong>Terminal 3 Startup Program and ecosystem listing page</strong>.</p>
+
+  <h3>Handover Readiness</h3>
+  <p>For direct hosting by the Terminal 3 team, the repository includes:</p>
+  <ul>
+    <li>A production <code>Dockerfile</code> and <code>docker-compose.yml</code> for 1-command startup.</li>
+    <li>A built-in HTTP health and telemetry service (<code>/healthz</code> and <code>/metrics</code> on port 3000) for Kubernetes or Docker monitoring.</li>
+    <li>An automated GitHub Actions CI workflow (<code>.github/workflows/ci.yml</code>) testing against Node 18, 20, and 22.</li>
+    <li>A complete unit test suite (<code>npm test</code>) with 100% pass rate across 8 test suites.</li>
+    <li>An operational runbook in <code>docs/HANDOVER.md</code>.</li>
+  </ul>
+
+  <h2>3. Execution Verification & Logs</h2>
+  <h3>Agent Execution against Live T3N Testnet Enclave</h3>
+  <pre>
+[t3n-agent] Connecting to T3N confidential enclave...
+[t3n-agent] Connected in 1098ms
+[t3n-agent] Environment:     testnet
+[t3n-agent] Tenant DID:      did:t3n:1142e6fe4b46cda878b5aedcc32fad8c3a979384
+[t3n-agent] Signing Address: 0x48194316e6b6d97f01ce60b6f7707220b95ca350
+[t3n-agent] Enclave Trust:   Manifest v1787800421 (3 peers attested)
+[t3n-agent] Identity:        T3N Enterprise Auditor (compliance_worker)
+
+[task:pii] Running zero-knowledge customer record evaluation...
+[task:pii] Ingested record:   REC-CORP-98421 (SSN: [REDACTED IN TEE])
+[task:pii] Derived Pseudonym: did:t3n:anon:d894b2d94826ed1a9a20ff8b90a69d9c
+[task:pii] Compliance Status: PASSED (Eligible: true)
+[task:pii] Audit Digest:      0x7153faf23d9d0dd5fc1e43a0dd9252b85b4b43465e1dd3b91b85258d217ddde4
+
+[task:vc] Validating Smart Verifiable Credential on-chain...
+[task:vc] Holder DID:         did:t3n:7821bc34ef918234ab871234cd982341fe654321
+[task:vc] Credential Type:    EnterpriseComplianceCertificate_v2
+[task:vc] Status:             VALID (Level_2_Verified)
+[task:vc] Enclave Signature:  0xb392aaae4185b065b07f1c538cf3ec...
+
+[task:receipt] Minting tamper-evident execution receipt...
+[task:receipt] Receipt ID:    rcpt_8a471f5be5fd
+[task:receipt] Cryptographic: 0x7a49d750e245c28069bbdc3636239a85a73bef8013f077f917be940ffb7b95b2
+[task:receipt] Timestamp:     2026-09-12T12:20:12.826Z
+
+[t3n-agent] Run completed successfully with 0 errors.
+  </pre>
+
+  <h3>Automated Unit & Integration Test Suite (npm test)</h3>
+  <pre>
+> t3n-enterprise-agent@1.0.0 test
+> tsx --test test/agent.test.ts
+
+✔ DID syntax verification (0.96ms)
+✔ Identity resolution (0.18ms)
+✔ Delegation scope enforcement (0.51ms)
+✔ Confidential PII sanitization and credit evaluation (1.59ms)
+✔ Underwriting rejection logic (0.19ms)
+✔ Smart VC verification proof (0.21ms)
+✔ Tamper-evident audit receipt minting (0.38ms)
+✔ Health server liveness and metrics probes (1167ms)
+ℹ tests 8
+ℹ pass 8
+ℹ fail 0
+  </pre>
+
+  <h2>4. Refreshed Docs Feedback & Bug Report</h2>
+  <ol>
+    <li><strong>Windows Subshell PATH Resolution during npm install:</strong><br>
+    Running <code>npm install @terminal3/t3n-sdk@5.2.0 tsx</code> on Windows can fail during esbuild postinstall if the child <code>cmd.exe</code> process hasn't inherited Node.js from the environment PATH. Adding a short note for Windows developers in the prerequisites section would prevent this.</li>
+    <li><strong>Single-Display API Key Modal:</strong><br>
+    The claim page modal only shows the private API key once. Adding a copy-confirmation prompt or a one-time <code>.env</code> download would prevent accidental loss.</li>
+    <li><strong>Trust Anchor Manifest Caching:</strong><br>
+    Calling <code>await fetchTrustedManifest("testnet")</code> on each client construction adds remote network latency. The docs should show how to cache the manifest object with an in-memory TTL for production microservices.</li>
+    <li><strong>DID vs. Address Clarification:</strong><br>
+    A brief note clarifying that the derived Ethereum address is used solely for the initial handshake signature, while <code>tenantDid</code> is the permanent identifier across all T3N contracts.</li>
+  </ol>
+
+  <h2>5. Documentation Links in Repo</h2>
+  <ul>
+    <li>Architecture Spec: <code>docs/ARCHITECTURE.md</code></li>
+    <li>Handover Runbook: <code>docs/HANDOVER.md</code></li>
+    <li>Bug Report: <code>docs/BUG_REPORT.md</code></li>
+  </ul>
+
+</body>
+</html>
