@@ -11,6 +11,7 @@ The agent audits sensitive customer records, sanitizes PII, and verifies Smart V
 - **Smart VC Verification**: Validates caller DIDs and credentials against T3N on-chain registries.
 - **Tamper-Evident Receipts**: Generates cryptographic execution digests for corporate compliance logs.
 - **Production Telemetry**: Built-in HTTP health and metrics endpoints (`/healthz`, `/metrics`).
+- **Automated Test Suite & CI**: Comprehensive unit tests covering determinism, delegation rules, and syntax validation.
 
 ## Quickstart
 
@@ -36,9 +37,18 @@ The agent audits sensitive customer records, sanitizes PII, and verifies Smart V
 3. Run the agent:
    ```bash
    npm start
+   # Or run specific scenarios:
+   npm start -- --scenario=pii
+   npm start -- --scenario=credentials
+   npm start -- --scenario=receipts
    ```
 
-4. Run the health daemon:
+4. Run the test suite:
+   ```bash
+   npm test
+   ```
+
+5. Run the health daemon:
    ```bash
    npm run health
    # Listening on http://localhost:3000/healthz
@@ -55,13 +65,16 @@ curl http://localhost:3000/healthz
 
 ```
 t3n-enterprise-agent/
+├── .github/workflows/ci.yml  # Multi-version Node.js CI pipeline
 ├── src/
 │   ├── config/t3n.ts         # T3nClient initialization and trust anchor setup
 │   ├── core/auth.ts          # DID format validation and identity checks
 │   ├── core/delegation.ts    # Member delegation scope checks
 │   ├── core/auditEngine.ts   # PII sanitization and VC verification logic
-│   ├── agent.ts              # Main CLI execution flow
+│   ├── agent.ts              # Main CLI execution flow with flag parser
 │   └── health.ts             # Health check probe (/healthz, /metrics)
+├── test/
+│   └── agent.test.ts         # Comprehensive unit and integration test suite
 ├── docs/
 │   ├── ARCHITECTURE.md       # Architecture spec and security model
 │   ├── HANDOVER.md           # Handover runbook for T3N hosting

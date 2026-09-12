@@ -9,7 +9,7 @@
     "quickstart": "tsx quickstart.ts",
     "health": "tsx src/health.ts",
     "build": "tsc",
-    "test": "tsx src/agent.ts"
+    "test": "tsx --test test/agent.test.ts"
   },
   "keywords": [
     "terminal3",
