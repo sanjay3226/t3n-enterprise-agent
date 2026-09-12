@@ -1,0 +1,17 @@
+services:
+  t3n-auditshield:
+    build: .
+    container_name: t3n-auditshield-agent
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - T3N_API_KEY=${T3N_API_KEY}
+      - T3N_TENANT_DID=${T3N_TENANT_DID}
+      - T3N_ENVIRONMENT=${T3N_ENVIRONMENT:-testnet}
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

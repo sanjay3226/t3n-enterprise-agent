@@ -1,0 +1,34 @@
+{
+  "name": "t3n-enterprise-agent",
+  "version": "1.0.0",
+  "description": "T3N-AuditShield: Confidential Enterprise Compliance & Privacy Guardian Agent on Terminal 3 Network",
+  "main": "src/agent.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/agent.ts",
+    "quickstart": "tsx quickstart.ts",
+    "health": "tsx src/health.ts",
+    "build": "tsc",
+    "test": "tsx src/agent.ts"
+  },
+  "keywords": [
+    "terminal3",
+    "t3n",
+    "ai-agent",
+    "confidential-computing",
+    "tee",
+    "enterprise",
+    "did",
+    "verifiable-credentials",
+    "gdpr-compliance"
+  ],
+  "author": "Discipline Guy & Team",
+  "license": "MIT",
+  "dependencies": {
+    "@terminal3/t3n-sdk": "^5.2.0",
+    "@types/node": "^22.20.2",
+    "dotenv": "^17.4.2",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
+  }
+}
